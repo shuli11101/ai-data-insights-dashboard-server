@@ -1,0 +1,29 @@
+# 开发环境配置
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:recruitment_dashboard}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:abc771103}
+    hikari:
+      pool-name: AiDataHikariPool
+      minimum-idle: 2
+      maximum-pool-size: 10
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+mybatis-plus:
+  configuration:
+    # 开发环境打印 SQL，生产环境请关闭
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+knife4j:
+  enable: true
+  production: false
+
+logging:
+  level:
+    com.aidata.insights: debug
+    org.springframework.security: info

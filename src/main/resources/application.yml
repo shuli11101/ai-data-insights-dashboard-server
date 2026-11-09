@@ -1,0 +1,119 @@
+server:
+  port: ${SERVER_PORT:8081}
+  servlet:
+    context-path: /api
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+
+spring:
+  application:
+    name: ai-data-insights-server
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 50MB
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 3s
+
+# ============ MyBatis-Plus ============
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.aidata.insights.module.**.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+      table-underline: true
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ============ 接口文档 ============
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    swagger-model-name: 实体类列表
+  # 生产环境可开启接口文档访问密码
+  basic:
+    enable: false
+    username: knife4j
+    password: knife4j
+
+# ============ 业务自定义配置 ============
+security:
+  jwt:
+    # 与既有 Node 服务共用同一密钥，保证历史签发的令牌仍可被识别；生产环境务必用环境变量覆盖
+    secret: ${JWT_SECRET:7f3c9a1e5b8d2f6a4c0e9b7d3a1f8c5e2b6d4a9f7c3e1b8d5a2f6c9e4b7d1a3f}
+    # 令牌有效期（分钟），7 天
+    expire-minutes: ${JWT_EXPIRE_MINUTES:10080}
+    header: Authorization
+    prefix: "Bearer "
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:3000
+      - http://127.0.0.1:5173
+      - http://127.0.0.1:3000
+    allowed-methods: [ GET, POST, PUT, DELETE, PATCH, OPTIONS ]
+    allowed-headers: [ "*" ]
+    allow-credentials: true
+    max-age: 3600
+
+logging:
+  level:
+    root: info
+    com.aidata.insights: debug
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized

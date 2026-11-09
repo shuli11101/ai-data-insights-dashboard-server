@@ -1,0 +1,36 @@
+# 生产环境配置：敏感信息全部通过环境变量注入
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:recruitment_dashboard}?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+    hikari:
+      pool-name: AiDataHikariPool
+      minimum-idle: 5
+      maximum-pool-size: 30
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# 生产环境关闭接口文档
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+knife4j:
+  enable: false
+  production: true
+
+logging:
+  level:
+    root: warn
+    com.aidata.insights: info
+  file:
+    name: ${LOG_PATH:./logs}/ai-data-insights-server.log
