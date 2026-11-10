@@ -49,7 +49,7 @@ spring:
 # ============ MyBatis-Plus ============
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.aidata.insights.module.**.entity
+  type-aliases-package: com.aidata.insights.entity
   configuration:
     map-underscore-to-camel-case: true
     default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler

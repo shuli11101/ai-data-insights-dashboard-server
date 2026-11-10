@@ -30,7 +30,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         Knife4jAutoConfiguration.class,
         Knife4jInsightAutoConfiguration.class
 })
-@MapperScan("com.aidata.insights.module.**.mapper")
+@MapperScan("com.aidata.insights.mapper")
 @EnableConfigurationProperties({JwtProperties.class, CorsProperties.class})
 public class AiDataInsightsApplication {
 

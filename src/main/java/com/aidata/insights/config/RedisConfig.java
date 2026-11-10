@@ -1,5 +1,6 @@
 package com.aidata.insights.config;
 
+import com.aidata.insights.common.constant.RedisKeyConstant;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -41,7 +42,7 @@ public class RedisConfig {
         RedisCacheConfiguration configuration = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .disableCachingNullValues()
-                .computePrefixWith(cacheName -> "cache:" + cacheName + ":")
+                .computePrefixWith(cacheName -> RedisKeyConstant.CACHE_PREFIX + cacheName + ":")
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
