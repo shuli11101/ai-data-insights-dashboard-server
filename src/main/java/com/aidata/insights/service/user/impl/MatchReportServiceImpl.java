@@ -1,14 +1,19 @@
-package com.aidata.insights.service.user;
+package com.aidata.insights.service.user.impl;
 
+import com.aidata.insights.common.api.ResultCode;
+import com.aidata.insights.common.exception.BizException;
+import com.aidata.insights.dto.user.SaveMatchReportRequest;
 import com.aidata.insights.entity.JobPosition;
 import com.aidata.insights.entity.MatchReport;
 import com.aidata.insights.mapper.home.JobPositionMapper;
 import com.aidata.insights.mapper.user.MatchReportMapper;
 import com.aidata.insights.security.SecurityUtils;
+import com.aidata.insights.service.user.IMatchReportService;
 import com.aidata.insights.vo.user.MatchReportListVO;
 import com.aidata.insights.vo.user.MatchReportVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -26,7 +31,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-public class MatchReportService {
+public class MatchReportServiceImpl implements IMatchReportService {
 
     /** 正文中的「技能覆盖率：0」 */
     private static final Pattern SKILL_COVERAGE_PATTERN = Pattern.compile("技能覆盖率[：:]\\s*(\\d+)");
@@ -41,9 +46,12 @@ public class MatchReportService {
     /**
      * 当前用户已保存的全部分析报告，按最后更新时间倒序
      */
+    @Override
     public MatchReportListVO listReports() {
+        // 获取当前用户id
         Long userId = SecurityUtils.requireUserId();
 
+        // 根据用户id查询匹配报告
         List<MatchReport> reports = matchReportMapper.selectList(Wrappers.<MatchReport>lambdaQuery()
                 .eq(MatchReport::getUserId, userId)
                 .orderByDesc(MatchReport::getUpdateTime)
@@ -52,6 +60,7 @@ public class MatchReportService {
             return new MatchReportListVO(List.of(), 0);
         }
 
+        // 根据报告中的岗位id查询岗位信息
         List<Long> jobIds = reports.stream()
                 .map(MatchReport::getJobId)
                 .distinct()
@@ -59,12 +68,92 @@ public class MatchReportService {
         Map<Long, JobPosition> jobs = jobPositionMapper.selectBatchIds(jobIds).stream()
                 .collect(Collectors.toMap(JobPosition::getId, job -> job));
 
+        // 将报告和岗位信息组合成VO
         List<MatchReportVO> list = reports.stream()
                 .map(report -> toVO(report, jobs.get(report.getJobId())))
                 .toList();
         return new MatchReportListVO(list, reports.size());
     }
 
+    /**
+     * 保存分析报告
+     */
+    @Override
+    public MatchReportVO saveReport(SaveMatchReportRequest request) {
+
+        Long userId = SecurityUtils.requireUserId();
+
+        JobPosition job = jobPositionMapper.selectById(request.getJobId());
+        if (job == null) {
+            throw new BizException(ResultCode.NOT_FOUND, "岗位不存在");
+        }
+
+        // 同一用户同一岗位只保留一份报告（uk_user_job），重复保存时覆盖旧内容
+        MatchReport report = findByUserAndJob(userId, request.getJobId());
+        if (report == null) {
+            report = new MatchReport(userId, request.getJobId(), request.getScore(), request.getContent());
+            try {
+                matchReportMapper.insert(report);
+            } catch (DuplicateKeyException e) {
+                // 并发提交时另一个请求已插入，转为覆盖更新
+                report = findByUserAndJob(userId, request.getJobId());
+                if (report == null) {
+                    throw new BizException(ResultCode.INTERNAL_ERROR, "报告保存失败，请重试");
+                }
+                updateContent(report, request);
+            }
+        } else {
+            updateContent(report, request);
+        }
+
+        return toVO(report, job);
+    }
+
+    /**
+     * 获取当前用户已保存的分析报告
+     */
+    @Override
+    public MatchReportVO getReport(Long jobId) {
+        MatchReport report = findByUserAndJob(SecurityUtils.requireUserId(), jobId);
+        if (report == null) {
+            return null;
+        }
+        return toVO(report, jobPositionMapper.selectById(jobId));
+    }
+
+    /**
+     * 删除当前用户已保存的分析报告
+     */
+    @Override
+    public boolean deleteReport(Long jobId) {
+        MatchReport report = findByUserAndJob(SecurityUtils.requireUserId(), jobId);
+        if (report != null) {
+            matchReportMapper.deleteById(report.getId());
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 按用户 + 岗位查已有报告，uk_user_job 保证最多一条
+     */
+    private MatchReport findByUserAndJob(Long userId, Long jobId) {
+        return matchReportMapper.selectOne(Wrappers.<MatchReport>lambdaQuery()
+                .eq(MatchReport::getUserId, userId)
+                .eq(MatchReport::getJobId, jobId)
+                .last("LIMIT 1"));
+    }
+
+    // 覆盖已有报告的正文与分数，updateTime 由 MybatisMetaObjectHandler 自动刷新
+    private void updateContent(MatchReport report, SaveMatchReportRequest request) {
+        report.setScore(request.getScore());
+        report.setContent(request.getContent());
+        matchReportMapper.updateById(report);
+    }
+
+    /**
+     * 将报告和岗位信息组合成VO
+     */
     private MatchReportVO toVO(MatchReport report, JobPosition job) {
         MatchReportVO vo = new MatchReportVO();
         vo.setReportId(report.getId());
@@ -85,6 +174,9 @@ public class MatchReportService {
         return vo;
     }
 
+    /**
+     * 从报告内容中提取技能覆盖率和薪资偏差
+     */
     private Integer extractInt(Pattern pattern, String content) {
         if (!StringUtils.hasText(content)) {
             return null;

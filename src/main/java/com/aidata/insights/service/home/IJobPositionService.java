@@ -47,4 +47,9 @@ public interface IJobPositionService {
      * 城市下拉选项
      */
     List<CityOptionVO> cityOptions();
+
+    /**
+     * 技术栈下拉选项
+     */
+    List<String> keywords();
 }

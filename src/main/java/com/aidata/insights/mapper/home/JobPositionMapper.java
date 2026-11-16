@@ -62,6 +62,26 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
     List<SkillTagVO> selectHotSkillTags();
 
     /**
+     * 技术栈下拉选项：展开 skill_tags，过滤 JD 长句噪声后按热度排序
+     *
+     * <p>数据里混有从岗位描述抽取的长句（如「# 定期或不定期举办…」），
+     * 用长度 ≤ 20 且不以数字 / # / 括号开头做粗过滤，再取出现次数最高的前 100 个。</p>
+     */
+    @Select("""
+            SELECT TRIM(t.tag) AS keyword
+            FROM job_positions j
+            JOIN JSON_TABLE(j.skill_tags, '$[*]' COLUMNS (tag VARCHAR(100) PATH '$')) t
+            WHERE t.tag IS NOT NULL
+              AND TRIM(t.tag) <> ''
+              AND CHAR_LENGTH(TRIM(t.tag)) <= 20
+              AND TRIM(t.tag) NOT REGEXP '^[0-9#（(]'
+            GROUP BY keyword
+            ORDER BY COUNT(*) DESC, keyword
+            LIMIT 100
+            """)
+    List<String> selectKeywords();
+
+    /**
      * 城市岗位数量：岗位数前 8 的城市 + 其余合并为「其他」
      *
      * <p>「异地招聘」不是真实城市（940 条），统计时剔除。</p>

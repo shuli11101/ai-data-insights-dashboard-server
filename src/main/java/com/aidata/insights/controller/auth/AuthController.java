@@ -3,7 +3,7 @@ package com.aidata.insights.controller.auth;
 import com.aidata.insights.common.api.Result;
 import com.aidata.insights.dto.auth.LoginRequest;
 import com.aidata.insights.dto.auth.RegisterRequest;
-import com.aidata.insights.service.auth.AuthService;
+import com.aidata.insights.service.auth.IAuthService;
 import com.aidata.insights.vo.auth.LoginVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final IAuthService authService;
 
     @Operation(summary = "注册：手机号 + 验证码 + 密码")
     @PostMapping("/register")

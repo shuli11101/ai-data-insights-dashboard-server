@@ -1,4 +1,4 @@
-package com.aidata.insights.service.auth;
+package com.aidata.insights.service.auth.impl;
 
 import com.aidata.insights.common.api.ResultCode;
 import com.aidata.insights.common.exception.BizException;
@@ -7,6 +7,7 @@ import com.aidata.insights.dto.auth.RegisterRequest;
 import com.aidata.insights.entity.AppUser;
 import com.aidata.insights.mapper.user.AppUserMapper;
 import com.aidata.insights.security.JwtTokenProvider;
+import com.aidata.insights.service.auth.IAuthService;
 import com.aidata.insights.vo.auth.LoginVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ import java.security.SecureRandom;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthServiceImpl implements IAuthService {
 
     /** 短信服务接入前，所有手机号共用这个固定验证码 */
     private static final String FIXED_VERIFY_CODE = "123456";
@@ -49,6 +50,7 @@ public class AuthService {
     /**
      * 手机号 + 密码登录
      */
+    @Override
     public LoginVO login(LoginRequest request) {
         AppUser user = appUserMapper.selectOne(Wrappers.<AppUser>lambdaQuery()
                 .eq(AppUser::getPhone, request.getPhone())
@@ -66,6 +68,7 @@ public class AuthService {
     /**
      * 手机号 + 验证码 + 密码注册，成功后直接签发令牌
      */
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public LoginVO register(RegisterRequest request) {
         if (!FIXED_VERIFY_CODE.equals(request.getCode())) {

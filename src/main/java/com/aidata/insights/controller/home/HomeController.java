@@ -96,4 +96,13 @@ public class HomeController {
     public Result<List<CityOptionVO>> city() {
         return Result.ok(jobPositionService.cityOptions());
     }
+
+    /**
+     * 技术栈下拉选项
+     */
+    @Operation(summary = "技术栈下拉选项")
+    @GetMapping("/keywords")
+    public Result<List<String>> keywords() {
+        return Result.ok(jobPositionService.keywords());
+    }
 }

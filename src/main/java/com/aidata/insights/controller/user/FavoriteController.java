@@ -2,7 +2,7 @@ package com.aidata.insights.controller.user;
 
 import com.aidata.insights.common.api.Result;
 import com.aidata.insights.dto.user.FavoriteRequest;
-import com.aidata.insights.service.user.FavoriteService;
+import com.aidata.insights.service.user.IFavoriteService;
 import com.aidata.insights.vo.user.FavoriteListVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FavoriteController {
 
-    private final FavoriteService favoriteService;
+    private final IFavoriteService favoriteService;
 
     /**
      * 收藏岗位

@@ -8,7 +8,7 @@ import com.aidata.insights.entity.JobPosition;
 import com.aidata.insights.mapper.home.CityMapper;
 import com.aidata.insights.mapper.home.JobPositionMapper;
 import com.aidata.insights.service.home.IJobPositionService;
-import com.aidata.insights.service.user.FavoriteService;
+import com.aidata.insights.service.user.IFavoriteService;
 import com.aidata.insights.vo.home.AreaJobCountVO;
 import com.aidata.insights.vo.home.CityOptionVO;
 import com.aidata.insights.vo.home.ExperienceSalaryVO;
@@ -48,7 +48,7 @@ public class JobPositionServiceImpl implements IJobPositionService {
 
     private final CityMapper cityMapper;
 
-    private final FavoriteService favoriteService;
+    private final IFavoriteService favoriteService;
 
     
     // 查询岗位列表，包含多个可能为空条件
@@ -173,5 +173,13 @@ public class JobPositionServiceImpl implements IJobPositionService {
             log.warn("首页统计缓存写入失败, 跳过缓存: key={}", key, e);
         }
         return result;
+    }
+
+    /**
+     * 技术栈下拉选项
+     */
+    @Override
+    public List<String> keywords() {
+        return jobPositionMapper.selectKeywords();
     }
 }

@@ -1,10 +1,11 @@
-package com.aidata.insights.service.ai;
+package com.aidata.insights.service.ai.impl;
 
 import com.aidata.insights.entity.AiConversation;
 import com.aidata.insights.entity.AiMessage;
 import com.aidata.insights.mapper.ai.AiConversationMapper;
 import com.aidata.insights.mapper.ai.AiMessageMapper;
 import com.aidata.insights.security.SecurityUtils;
+import com.aidata.insights.service.ai.IAiConversationService;
 import com.aidata.insights.vo.ai.AiConversationVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-public class AiConversationService {
+public class AiConversationServiceImpl implements IAiConversationService {
 
     /** 历史服务约定：会话类型固定 single，库中没有对应列 */
     private static final String DEFAULT_TYPE = "single";
@@ -36,6 +37,7 @@ public class AiConversationService {
     /**
      * 当前用户的会话列表
      */
+    @Override
     public List<AiConversationVO> listConversations(int limit) {
         Long userId = SecurityUtils.requireUserId();
         int size = Math.min(Math.max(limit, 1), MAX_LIMIT);

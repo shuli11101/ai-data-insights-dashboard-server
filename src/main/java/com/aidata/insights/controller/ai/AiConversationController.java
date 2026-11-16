@@ -1,7 +1,7 @@
 package com.aidata.insights.controller.ai;
 
 import com.aidata.insights.common.api.Result;
-import com.aidata.insights.service.ai.AiConversationService;
+import com.aidata.insights.service.ai.IAiConversationService;
 import com.aidata.insights.vo.ai.AiConversationVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,7 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiConversationController {
 
-    private final AiConversationService aiConversationService;
+    private final IAiConversationService aiConversationService;
 
     /**
      * 获取会话列表

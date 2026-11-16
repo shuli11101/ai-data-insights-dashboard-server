@@ -1,4 +1,4 @@
-package com.aidata.insights.service.user;
+package com.aidata.insights.service.user.impl;
 
 import com.aidata.insights.common.api.ResultCode;
 import com.aidata.insights.common.constant.RedisKeyConstant;
@@ -8,6 +8,7 @@ import com.aidata.insights.entity.UserFavorite;
 import com.aidata.insights.mapper.home.JobPositionMapper;
 import com.aidata.insights.mapper.user.UserFavoriteMapper;
 import com.aidata.insights.security.SecurityUtils;
+import com.aidata.insights.service.user.IFavoriteService;
 import com.aidata.insights.vo.user.FavoriteJobVO;
 import com.aidata.insights.vo.user.FavoriteListVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FavoriteService {
+public class FavoriteServiceImpl implements IFavoriteService {
 
     private final UserFavoriteMapper userFavoriteMapper;
 
@@ -44,6 +45,7 @@ public class FavoriteService {
     /**
      * 收藏岗位：岗位不存在报 404，已收藏时按幂等处理
      */
+    @Override
     public void addFavorite(Long jobId) {
         Long userId = SecurityUtils.requireUserId();
 
@@ -66,6 +68,7 @@ public class FavoriteService {
     /**
      * 取消收藏：未收藏时按幂等处理
      */
+    @Override
     public void removeFavorite(Long jobId) {
         Long userId = SecurityUtils.requireUserId();
         userFavoriteMapper.delete(Wrappers.<UserFavorite>lambdaQuery()
@@ -78,6 +81,7 @@ public class FavoriteService {
     /**
      * 当前登录用户的收藏列表（按收藏时间倒序分页），并用全量 jobId 重建收藏集合缓存
      */
+    @Override
     public FavoriteListVO listFavorites(long page, long size) {
         Long userId = SecurityUtils.requireUserId();
 
@@ -109,6 +113,7 @@ public class FavoriteService {
     /**
      * 当前登录用户是否收藏了该岗位；未登录直接返回 false
      */
+    @Override
     public boolean isFavorited(Long jobId) {
         Long userId = SecurityUtils.getUserIdOrNull();
         if (userId == null) {
