@@ -1,15 +1,19 @@
 package com.aidata.insights.service.auth.impl;
 
 import com.aidata.insights.common.api.ResultCode;
+import com.aidata.insights.common.constant.RedisKeyConstant;
 import com.aidata.insights.common.exception.BizException;
+import com.aidata.insights.common.redis.RedisService;
 import com.aidata.insights.dto.auth.LoginRequest;
 import com.aidata.insights.dto.auth.RegisterRequest;
 import com.aidata.insights.entity.AppUser;
 import com.aidata.insights.mapper.user.AppUserMapper;
 import com.aidata.insights.security.JwtTokenProvider;
 import com.aidata.insights.service.auth.IAuthService;
+import com.aidata.insights.service.auth.IVerifyCodeService;
 import com.aidata.insights.vo.auth.LoginVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -19,21 +23,20 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 
 /**
  * 认证服务：登录与注册
  *
  * <p>与既有 Node 服务保持一致的业务规则：
- * 验证码固定 123456；登录失败不区分「号码不存在」与「密码错误」；
+ * 注册需校验短信验证码（一次性，5 分钟内有效）；登录失败不区分「号码不存在」与「密码错误」；
  * 昵称未填时生成 job_ + 6 位随机字母数字。</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements IAuthService {
-
-    /** 短信服务接入前，所有手机号共用这个固定验证码 */
-    private static final String FIXED_VERIFY_CODE = "123456";
 
     private static final String NICKNAME_PREFIX = "job_";
 
@@ -46,6 +49,10 @@ public class AuthServiceImpl implements IAuthService {
     private final PasswordEncoder passwordEncoder;
 
     private final JwtTokenProvider jwtTokenProvider;
+
+    private final IVerifyCodeService verifyCodeService;
+
+    private final RedisService redisService;
 
     /**
      * 手机号 + 密码登录
@@ -66,14 +73,38 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     /**
+     * 退出登录：把当前令牌的指纹写入黑名单，TTL 与令牌剩余有效期一致
+     */
+    @Override
+    public void logout(String authorizationHeader) {
+        jwtTokenProvider.resolveToken(authorizationHeader).ifPresent(token -> {
+            try {
+                // 解析令牌获取载荷
+                JwtTokenProvider.JwtPayload payload = jwtTokenProvider.parseToken(token);
+                long ttlSeconds = Duration.between(Instant.now(), payload.expiresAt()).getSeconds();
+                if (ttlSeconds <= 0) {
+                    // 已过期，本身就已失效，无需拉黑
+                    return;
+                }
+                // 存指纹而不是明文令牌，避免 Redis 中直接拿到可用凭证
+                redisService.set(RedisKeyConstant.tokenBlacklist(jwtTokenProvider.fingerprint(token)),
+                        "1", Duration.ofSeconds(ttlSeconds));
+                log.info("令牌已加入黑名单: userId={}, ttl={}s", payload.userId(), ttlSeconds);
+            } catch (JwtException | IllegalArgumentException e) {
+                // 签名错误或格式错误，无需拉黑
+                log.debug("退出登录时令牌不可解析，忽略: {}", e.getMessage());
+            }
+        });
+    }
+
+    /**
      * 手机号 + 验证码 + 密码注册，成功后直接签发令牌
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LoginVO register(RegisterRequest request) {
-        if (!FIXED_VERIFY_CODE.equals(request.getCode())) {
-            throw new BizException(ResultCode.VERIFY_CODE_ERROR);
-        }
+        // 校验并消费验证码：验证通过立即失效，防止重复使用
+        verifyCodeService.verifyAndConsume(request.getPhone(), request.getCode());
 
         boolean existed = appUserMapper.exists(Wrappers.<AppUser>lambdaQuery()
                 .eq(AppUser::getPhone, request.getPhone()));

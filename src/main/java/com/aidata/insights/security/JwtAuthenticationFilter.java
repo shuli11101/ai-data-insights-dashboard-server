@@ -1,5 +1,7 @@
 package com.aidata.insights.security;
 
+import com.aidata.insights.common.constant.RedisKeyConstant;
+import com.aidata.insights.common.redis.RedisService;
 import com.aidata.insights.security.properties.JwtProperties;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -15,7 +17,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -37,14 +38,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProperties jwtProperties;
 
+    private final RedisService redisService;
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String token = resolveToken(request);
+        String token = jwtTokenProvider.resolveToken(request.getHeader(jwtProperties.getHeader()))
+                .orElse(null);
 
-        if (StringUtils.hasText(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null
+                && !isBlacklisted(token)) {
             try {
                 JwtTokenProvider.JwtPayload payload = jwtTokenProvider.parseToken(token);
                 CurrentUser currentUser = new CurrentUser(payload.userId(), payload.phone());
@@ -65,17 +70,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 提取令牌，仅接受 Bearer 前缀，与既有服务保持一致
+     * 黑名单校验：已注销的令牌即使签名有效也不再认。
+     *
+     * <p>Redis 不可用时降级放行，避免缓存故障导致全站鉴权失效。</p>
      */
-    private String resolveToken(HttpServletRequest request) {
-        String header = request.getHeader(jwtProperties.getHeader());
-        if (!StringUtils.hasText(header)) {
-            return null;
+    private boolean isBlacklisted(String token) {
+        try {
+            String key = RedisKeyConstant.tokenBlacklist(jwtTokenProvider.fingerprint(token));
+            return redisService.hasKey(key);
+        } catch (RuntimeException e) {
+            log.warn("令牌黑名单校验失败，按未拉黑处理: {}", e.getMessage());
+            return false;
         }
-        String prefix = jwtProperties.getPrefix();
-        if (!StringUtils.hasText(prefix) || !header.startsWith(prefix)) {
-            return null;
-        }
-        return header.substring(prefix.length()).trim();
     }
 }

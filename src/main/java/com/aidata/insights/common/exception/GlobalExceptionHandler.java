@@ -2,6 +2,7 @@ package com.aidata.insights.common.exception;
 
 import com.aidata.insights.common.api.Result;
 import com.aidata.insights.common.api.ResultCode;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +38,11 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
-    public ResponseEntity<Result<Void>> handleBizException(BizException e) {
+    public ResponseEntity<?> handleBizException(BizException e, HttpServletRequest request) {
         log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
+        if (isSseRequest(request)) {
+            return sseErrorResponse(e.getMessage());
+        }
         return build(e.getHttpStatus(), Result.fail(e.getCode(), e.getMessage()));
     }
 
@@ -46,14 +50,18 @@ public class GlobalExceptionHandler {
      * 请求体参数校验失败（@RequestBody + @Valid）
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Result<Void>> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+    public ResponseEntity<?> handleMethodArgumentNotValid(MethodArgumentNotValidException e,
+                                                          HttpServletRequest request) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining("; "));
         log.warn("参数校验失败: {}", message);
-        return build(HttpStatus.BAD_REQUEST, Result.fail(ResultCode.BAD_REQUEST,
-                message.isEmpty() ? ResultCode.BAD_REQUEST.getMessage() : message));
+        String text = message.isEmpty() ? ResultCode.BAD_REQUEST.getMessage() : message;
+        if (isSseRequest(request)) {
+            return sseErrorResponse(text);
+        }
+        return build(HttpStatus.BAD_REQUEST, Result.fail(ResultCode.BAD_REQUEST, text));
     }
 
     /**
@@ -186,9 +194,32 @@ public class GlobalExceptionHandler {
      * 未预期异常
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Result<Void>> handleException(Exception e) {
+    public ResponseEntity<?> handleException(Exception e, HttpServletRequest request) {
         log.error("系统异常", e);
+        if (isSseRequest(request)) {
+            return sseErrorResponse(ResultCode.INTERNAL_ERROR.getMessage());
+        }
         return build(HttpStatus.INTERNAL_SERVER_ERROR, Result.fail(ResultCode.INTERNAL_ERROR));
+    }
+
+    /**
+     * 请求是否期望 SSE 响应（流式接口声明了 produces=text/event-stream）
+     */
+    private boolean isSseRequest(HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        return accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE);
+    }
+
+    /**
+     * SSE 接口出错时必须以事件形式返回：
+     * 若返回 JSON，客户端因 Accept 不匹配只能收到 406，真正的错误原因会被掩盖。
+     */
+    private ResponseEntity<String> sseErrorResponse(String message) {
+        String safe = message == null ? "" : message.replace("\"", "'").replace("\n", " ");
+        String body = "event: error\ndata: {\"message\":\"" + safe + "\"}\n\n";
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(body);
     }
 
     private ResponseEntity<Result<Void>> build(HttpStatus status, Result<Void> body) {

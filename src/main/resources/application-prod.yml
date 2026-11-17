@@ -1,4 +1,8 @@
 # 生产环境配置：敏感信息全部通过环境变量注入
+server:
+  # 部署在 Nginx 之后，需正确解析 X-Forwarded-* 头（否则日志里的客户端 IP、生成的链接会错）
+  forward-headers-strategy: native
+
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -12,6 +16,11 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       connection-timeout: 30000
+
+# 生产环境头像必须存对象存储，默认 s3；缺 endpoint/ak/sk/bucket 时启动直接报错，避免误落本地磁盘
+app:
+  upload:
+    storage-type: ${UPLOAD_STORAGE_TYPE:s3}
 
 mybatis-plus:
   configuration:
@@ -27,6 +36,14 @@ springdoc:
 knife4j:
   enable: false
   production: true
+
+security:
+  jwt:
+    # 必须通过环境变量注入，故意不设默认值：缺失时启动直接失败，避免线上沿用开发密钥
+    secret: ${JWT_SECRET}
+  cors:
+    # 线上前端域名，多个用逗号分隔，如 https://www.example.com,https://admin.example.com
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 
 logging:
   level:

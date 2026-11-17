@@ -9,7 +9,7 @@ import lombok.Data;
 /**
  * 注册请求（手机号 + 验证码 + 密码）
  *
- * <p>短信服务接入前，验证码固定为 123456，与既有服务保持一致。</p>
+ * <p>验证码需先调用 POST /api/auth/sms-code 获取，默认 5 分钟内有效且只能使用一次。</p>
  */
 @Data
 @Schema(description = "注册请求")
@@ -20,7 +20,7 @@ public class RegisterRequest {
     @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式错误")
     private String phone;
 
-    @Schema(description = "短信验证码，当前固定 123456", example = "123456", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "短信验证码，通过 /auth/sms-code 获取", example = "123456", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "请输入验证码")
     private String code;
 

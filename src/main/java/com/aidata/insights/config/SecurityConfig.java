@@ -38,6 +38,7 @@ public class SecurityConfig {
     private static final String[] WHITE_LIST = {
             "/auth/login",
             "/auth/register",
+            "/auth/sms-code",
             "/home/jobList",
             "/home/jobDetail",
             "/home/salaryRange",
@@ -52,6 +53,8 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/swagger-resources/**",
             "/favicon.ico",
+            // 头像等上传文件由静态资源映射直接提供，图片请求不带 JWT
+            "/uploads/**",
             "/error",
             "/actuator/health"
     };

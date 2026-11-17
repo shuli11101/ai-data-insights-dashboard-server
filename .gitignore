@@ -23,5 +23,8 @@ bin/
 .DS_Store
 Thumbs.db
 
+### 上传文件（不入库） ###
+uploads/
+
 ### 本地环境配置（不入库） ###
 application-local.yml

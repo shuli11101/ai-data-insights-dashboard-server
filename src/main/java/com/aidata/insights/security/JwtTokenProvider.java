@@ -6,12 +6,16 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.Optional;
 
 /**
@@ -75,6 +79,34 @@ public class JwtTokenProvider {
                 claims.get(CLAIM_PHONE, String.class),
                 claims.getExpiration().toInstant()
         );
+    }
+
+    /**
+     * 从 Authorization 头中提取令牌，仅接受配置的前缀（如 "Bearer "）
+     */
+    public Optional<String> resolveToken(String header) {
+        if (!StringUtils.hasText(header)) {
+            return Optional.empty();
+        }
+        String prefix = properties.getPrefix();
+        if (!StringUtils.hasText(prefix) || !header.startsWith(prefix)) {
+            return Optional.empty();
+        }
+        String token = header.substring(prefix.length()).trim();
+        return StringUtils.hasText(token) ? Optional.of(token) : Optional.empty();
+    }
+
+    /**
+     * 令牌指纹（SHA-256）：黑名单只存指纹，避免把明文令牌写进 Redis
+     */
+    public String fingerprint(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 算法不可用", e);
+        }
     }
 
     /**

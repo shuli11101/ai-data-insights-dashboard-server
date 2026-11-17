@@ -28,7 +28,11 @@ public enum ResultCode {
     TOKEN_INVALID(401, "登录凭证无效", HttpStatus.UNAUTHORIZED),
     PHONE_EXISTS(409, "该手机号已注册", HttpStatus.CONFLICT),
     VERIFY_CODE_ERROR(400, "验证码错误", HttpStatus.BAD_REQUEST),
-    USER_NOT_FOUND(404, "用户不存在", HttpStatus.NOT_FOUND);
+    VERIFY_CODE_EXPIRED(400, "验证码已失效，请重新获取", HttpStatus.BAD_REQUEST),
+    USER_NOT_FOUND(404, "用户不存在", HttpStatus.NOT_FOUND),
+
+    SMS_SEND_TOO_FREQUENT(429, "验证码发送过于频繁，请稍后再试", HttpStatus.TOO_MANY_REQUESTS),
+    SMS_DAILY_LIMIT(429, "今日验证码发送次数已达上限", HttpStatus.TOO_MANY_REQUESTS);
 
     private final int code;
 

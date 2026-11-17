@@ -20,6 +20,26 @@ public final class RedisKeyConstant {
     public static final String VERIFY_CODE_PREFIX = "auth:verify-code:";
 
     /**
+     * 验证码重发节流，标识为手机号
+     */
+    public static final String VERIFY_CODE_RESEND_PREFIX = "auth:verify-code-resend:";
+
+    /**
+     * 验证码每日发送次数，标识为手机号
+     */
+    public static final String VERIFY_CODE_DAILY_PREFIX = "auth:verify-code-daily:";
+
+    /**
+     * 验证码校验失败次数，标识为手机号
+     */
+    public static final String VERIFY_CODE_FAIL_PREFIX = "auth:verify-code-fail:";
+
+    /**
+     * 验证码请求次数（IP 维度），标识为 IP
+     */
+    public static final String VERIFY_CODE_IP_PREFIX = "auth:verify-code-ip:";
+
+    /**
      * 登录失败次数，标识为手机号，用于限流与账号锁定
      */
     public static final String LOGIN_FAIL_PREFIX = "auth:login-fail:";
@@ -54,6 +74,16 @@ public final class RedisKeyConstant {
     public static final String USER_FAVORITE_PREFIX = "user:favorite:";
 
     /**
+     * AI 会话消息序号（Redis INCR），标识为会话内部主键，避免 max(seq)+1 并发重号
+     */
+    public static final String AI_CONVERSATION_SEQ_PREFIX = "ai:conv:seq:";
+
+    /**
+     * AI 序号计数器有效期（秒），30 天
+     */
+    public static final int AI_CONVERSATION_SEQ_TTL = 60 * 60 * 24 * 30;
+
+    /**
      * 用户收藏集合有效期（秒），24 小时
      */
     public static final int USER_FAVORITE_TTL = 60 * 60 * 24;
@@ -63,6 +93,22 @@ public final class RedisKeyConstant {
 
     public static String verifyCode(String phone) {
         return VERIFY_CODE_PREFIX + phone;
+    }
+
+    public static String verifyCodeResend(String phone) {
+        return VERIFY_CODE_RESEND_PREFIX + phone;
+    }
+
+    public static String verifyCodeDaily(String phone) {
+        return VERIFY_CODE_DAILY_PREFIX + phone;
+    }
+
+    public static String verifyCodeFail(String phone) {
+        return VERIFY_CODE_FAIL_PREFIX + phone;
+    }
+
+    public static String verifyCodeIp(String ip) {
+        return VERIFY_CODE_IP_PREFIX + ip;
     }
 
     public static String loginFail(String phone) {
@@ -79,5 +125,9 @@ public final class RedisKeyConstant {
 
     public static String userFavorites(Long userId) {
         return USER_FAVORITE_PREFIX + userId;
+    }
+
+    public static String aiConversationSeq(Long conversationPk) {
+        return AI_CONVERSATION_SEQ_PREFIX + conversationPk;
     }
 }

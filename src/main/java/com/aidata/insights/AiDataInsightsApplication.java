@@ -1,5 +1,8 @@
 package com.aidata.insights;
 
+import com.aidata.insights.config.properties.AiProperties;
+import com.aidata.insights.config.properties.SmsProperties;
+import com.aidata.insights.config.properties.UploadProperties;
 import com.aidata.insights.security.properties.CorsProperties;
 import com.aidata.insights.security.properties.JwtProperties;
 import com.github.xiaoymin.knife4j.spring.configuration.Knife4jAutoConfiguration;
@@ -31,7 +34,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         Knife4jInsightAutoConfiguration.class
 })
 @MapperScan("com.aidata.insights.mapper")
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, UploadProperties.class, SmsProperties.class, AiProperties.class})
 public class AiDataInsightsApplication {
 
     public static void main(String[] args) {

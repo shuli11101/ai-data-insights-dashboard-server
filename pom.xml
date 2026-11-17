@@ -27,6 +27,9 @@
         <jjwt.version>0.12.6</jjwt.version>
         <bouncycastle.version>1.78.1</bouncycastle.version>
         <archunit.version>1.3.0</archunit.version>
+        <awssdk.version>2.59.2</awssdk.version>
+        <aliyun-sms.version>4.6.0</aliyun-sms.version>
+        <aliyun-dypnsapi.version>2.0.0</aliyun-dypnsapi.version>
     </properties>
 
     <dependencies>
@@ -127,6 +130,39 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- 对象存储：S3 协议客户端（MinIO / 阿里云 OSS / 腾讯云 COS 均兼容） -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${awssdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- 同步 HTTP 客户端：上传频率低，避免引入 netty 常驻线程池 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>${awssdk.version}</version>
+        </dependency>
+
+        <!-- 短信：阿里云短信服务（仅 provider=aliyun 时使用） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>dysmsapi20170525</artifactId>
+            <version>${aliyun-sms.version}</version>
+        </dependency>
+
+        <!-- 短信：阿里云短信认证服务（号码认证 dypnsapi，个人认证免资质、赠送签名与 100001~100005 模板） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>dypnsapi20170525</artifactId>
+            <version>${aliyun-dypnsapi.version}</version>
         </dependency>
 
         <!-- 工具 -->
