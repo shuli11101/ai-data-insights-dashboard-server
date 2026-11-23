@@ -48,13 +48,13 @@ public class JobDetailVO {
     @Schema(description = "技能标签")
     private List<String> skillTags;
 
-    @Schema(description = "发布日期", example = "2025-07-07")
+    @Schema(description = "发布日期，v2 数据为空时不下发", example = "2025-07-07")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate publishDate;
 
-    @Schema(description = "创建时间", example = "2025-07-07 10:00:00")
+    @Schema(description = "采集时间（对应 v2 的 crawled_at）", example = "2025-07-07 10:00:00")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime createdAt;
+    private LocalDateTime crawledAt;
 
     /**
      * 当前登录用户是否已收藏，未登录时为 false

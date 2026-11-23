@@ -1,5 +1,6 @@
 package com.aidata.insights;
 
+import com.aidata.insights.config.properties.AiExecutorProperties;
 import com.aidata.insights.config.properties.AiProperties;
 import com.aidata.insights.config.properties.SmsProperties;
 import com.aidata.insights.config.properties.UploadProperties;
@@ -34,7 +35,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         Knife4jInsightAutoConfiguration.class
 })
 @MapperScan("com.aidata.insights.mapper")
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, UploadProperties.class, SmsProperties.class, AiProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, UploadProperties.class, SmsProperties.class,
+        AiProperties.class, AiExecutorProperties.class})
 public class AiDataInsightsApplication {
 
     public static void main(String[] args) {

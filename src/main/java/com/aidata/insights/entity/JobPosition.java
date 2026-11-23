@@ -14,12 +14,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 岗位信息（表 job_positions）
+ * 岗位信息（表 job_positions_v2）
  *
  * <p>autoResultMap 必须开启，否则 skill_tags（json 列）无法反序列化为 List。</p>
+ *
+ * <p>v2 没有 created_at 列，采集时间对应 crawled_at；其余业务字段（job_id / l1~l3 / source 等）未接入。</p>
  */
 @Data
-@TableName(value = "job_positions", autoResultMap = true)
+@TableName(value = "job_positions_v2", autoResultMap = true)
 public class JobPosition implements Serializable {
 
     @Serial
@@ -54,7 +56,7 @@ public class JobPosition implements Serializable {
     private LocalDate publishDate;
 
     /**
-     * 创建时间
+     * 采集时间（v2 对应列 crawled_at，v1 的 created_at 已不存在）
      */
-    private LocalDateTime createdAt;
+    private LocalDateTime crawledAt;
 }

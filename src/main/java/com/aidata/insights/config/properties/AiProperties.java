@@ -39,18 +39,14 @@ public class AiProperties {
     private Duration streamTimeout = Duration.ofSeconds(180);
 
     /**
-     * 同步长请求超时（报告生成等）
-     */
-    private Duration syncTimeout = Duration.ofSeconds(150);
-
-    /**
      * 每次带给模型的历史消息条数上限
      */
     @Min(1)
     private int maxHistoryMessages = 20;
 
     /**
-     * 系统提示词，为空时不下发 system 消息
+     * 系统提示词：默认空，由 FastAPI 按 scene 下发；
+     * 仅在需要紧急覆盖时配置，非空时 FastAPI 会让位。
      */
-    private String systemPrompt = "你是招聘数据分析助手，回答要简洁、准确，必要时用 Markdown 输出。";
+    private String systemPrompt = "";
 }

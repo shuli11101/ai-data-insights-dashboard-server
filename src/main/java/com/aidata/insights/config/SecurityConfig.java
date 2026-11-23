@@ -1,5 +1,6 @@
 package com.aidata.insights.config;
 
+import com.aidata.insights.common.trace.TraceContext;
 import com.aidata.insights.security.JwtAuthenticationFilter;
 import com.aidata.insights.security.RestAccessDeniedHandler;
 import com.aidata.insights.security.RestAuthenticationEntryPoint;
@@ -97,7 +98,8 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(corsProperties.getAllowedOrigins());
         configuration.setAllowedMethods(corsProperties.getAllowedMethods());
         configuration.setAllowedHeaders(corsProperties.getAllowedHeaders());
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        // 暴露自定义追踪头，浏览器跨域请求才能读到 X-Trace-Id（默认仅允许读简单响应头）
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition", TraceContext.HEADER));
         configuration.setAllowCredentials(corsProperties.isAllowCredentials());
         configuration.setMaxAge(corsProperties.getMaxAge());
 

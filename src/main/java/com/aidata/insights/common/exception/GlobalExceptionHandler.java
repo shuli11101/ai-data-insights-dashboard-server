@@ -216,7 +216,8 @@ public class GlobalExceptionHandler {
      */
     private ResponseEntity<String> sseErrorResponse(String message) {
         String safe = message == null ? "" : message.replace("\"", "'").replace("\n", " ");
-        String body = "event: error\ndata: {\"message\":\"" + safe + "\"}\n\n";
+        // 前端只解析 data 行，字段名固定为 error
+        String body = "event: error\ndata: {\"error\":\"" + safe + "\"}\n\n";
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_EVENT_STREAM)
                 .body(body);

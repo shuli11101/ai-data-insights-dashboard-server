@@ -17,23 +17,32 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
  * 进而在 Redis 中写入 {@code \xAC\xED} 开头的二进制数据，与 {@code RedisService} 写入的 JSON 互不兼容。</p>
  *
  * <p>因此用架构测试把这条约束自动化：除 {@code RedisService} 外，任何类都不得依赖
- * {@code org.springframework.data.redis.core.RedisTemplate}。违反时 {@code mvn test} 直接失败。</p>
+ * {@code RedisTemplate} 或 {@code StringRedisTemplate}。
+ * 前者会写入 JDK 序列化的二进制数据，后者虽为字符串序列化却让序列化/反序列化逻辑散落到业务代码，
+ * 两者都会绕过 {@code RedisService} 统一的 JSON 存取契约。违反时 {@code mvn test} 直接失败。</p>
  */
 class RedisArchitectureTest {
+
+    private static final String REDIS_TEMPLATE = "org.springframework.data.redis.core.RedisTemplate";
+
+    private static final String STRING_REDIS_TEMPLATE = "org.springframework.data.redis.core.StringRedisTemplate";
 
     private static final JavaClasses PRODUCTION_CLASSES = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("com.aidata.insights");
 
     @Test
-    @DisplayName("除 RedisService 外，禁止直接依赖 RedisTemplate")
+    @DisplayName("除 RedisService 外，禁止直接依赖 RedisTemplate / StringRedisTemplate")
     void onlyRedisServiceMayDependOnRedisTemplate() {
         assertDoesNotThrow(() -> noClasses()
                 .that().doNotHaveSimpleName("RedisService")
                 .should().dependOnClassesThat()
-                .haveFullyQualifiedName("org.springframework.data.redis.core.RedisTemplate")
-                .because("业务代码应使用 RedisService（基于 StringRedisTemplate + JSON），"
-                        + "直接注入 RedisTemplate 会拿到自动配置的 JDK 序列化版本，写入二进制乱码")
+                .haveFullyQualifiedName(REDIS_TEMPLATE)
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName(STRING_REDIS_TEMPLATE)
+                .because("业务代码应统一使用 RedisService（JSON 存取），"
+                        + "直接注入 RedisTemplate 会写入 JDK 序列化二进制，"
+                        + "直接注入 StringRedisTemplate 则会把序列化逻辑散落到各处")
                 .check(PRODUCTION_CLASSES));
     }
 }

@@ -1,8 +1,11 @@
 package com.aidata.insights.service.user;
 
 import com.aidata.insights.dto.user.SaveMatchReportRequest;
+import com.aidata.insights.vo.user.MatchReportDeleteVO;
 import com.aidata.insights.vo.user.MatchReportListVO;
 import com.aidata.insights.vo.user.MatchReportVO;
+
+import java.util.List;
 
 public interface IMatchReportService {
 
@@ -22,7 +25,7 @@ public interface IMatchReportService {
     MatchReportVO getReport(Long jobId);
 
     /**
-     * 删除当前用户已保存的分析报告
+     * 批量删除当前用户已保存的分析报告，不存在的岗位 ID 计入 missing
      */
-    boolean deleteReport(Long jobId);
+    MatchReportDeleteVO deleteReports(List<Long> jobIds);
 }

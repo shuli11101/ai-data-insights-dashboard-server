@@ -155,11 +155,23 @@ app:
     connect-timeout: 5s
     # 流式超时需大于 FastAPI 侧 request-timeout
     stream-timeout: 180s
-    # 同步长请求超时（报告生成等）
-    sync-timeout: 150s
     # 每次带入模型的历史消息条数
     max-history-messages: 20
-    system-prompt: 你是招聘数据分析助手，回答要简洁、准确，必要时用 Markdown 输出
+    # 系统提示词默认由 FastAPI 按 scene 下发（app/prompts.py）；仅在需要紧急覆盖时取消注释
+    # system-prompt: 你是招聘数据分析助手，回答要简洁、准确，必要时用 Markdown 输出
+    
+    # 流式任务线程池：有界队列，饱和后快速失败并由接口返回友好提示
+    executor:
+      # 常驻线程数
+      core-size: ${AI_EXECUTOR_CORE:8}
+      # 峰值线程上限，达到后任务进入队列
+      max-size: ${AI_EXECUTOR_MAX:32}
+      # 排队上限，队列也满时直接拒绝；过大会拉长排队等待，需小于前端超时
+      queue-capacity: ${AI_EXECUTOR_QUEUE:100}
+      # 线程名前缀，日志中用于区分流式任务线程
+      thread-name-prefix: ${AI_EXECUTOR_PREFIX:ai-stream-}
+      # 停机时等待任务响应中断的秒数，应与 server.shutdown 的 20s 匹配
+      await-termination-seconds: ${AI_EXECUTOR_AWAIT:20}
 
 security:
   jwt:
@@ -189,7 +201,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # metrics 用于观测线程池等运行指标，需要 JWT 才能访问（不在白名单中）
+        include: ${MANAGEMENT_ENDPOINTS:health,info,metrics}
   endpoint:
     health:
       show-details: when-authorized

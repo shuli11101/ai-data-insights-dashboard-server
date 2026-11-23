@@ -3,6 +3,7 @@ package com.aidata.insights.service.user.impl;
 import com.aidata.insights.common.api.ResultCode;
 import com.aidata.insights.common.constant.RedisKeyConstant;
 import com.aidata.insights.common.exception.BizException;
+import com.aidata.insights.common.redis.RedisService;
 import com.aidata.insights.entity.JobPosition;
 import com.aidata.insights.entity.UserFavorite;
 import com.aidata.insights.mapper.home.JobPositionMapper;
@@ -16,7 +17,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -40,7 +40,7 @@ public class FavoriteServiceImpl implements IFavoriteService {
 
     private final JobPositionMapper jobPositionMapper;
 
-    private final StringRedisTemplate stringRedisTemplate;
+    private final RedisService redisService;
 
     /**
      * 收藏岗位：岗位不存在报 404，已收藏时按幂等处理
@@ -123,11 +123,11 @@ public class FavoriteServiceImpl implements IFavoriteService {
         String key = RedisKeyConstant.userFavorites(userId);
         String jobIdText = String.valueOf(jobId);
         try {
-            if (Boolean.TRUE.equals(stringRedisTemplate.opsForSet().isMember(key, jobIdText))) {
+            if (redisService.setContains(key, jobIdText)) {
                 return true;
             }
             // key 存在说明集合已完整加载，未命中即确实未收藏
-            if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(key))) {
+            if (redisService.hasKey(key)) {
                 return false;
             }
         } catch (Exception e) {
@@ -149,12 +149,12 @@ public class FavoriteServiceImpl implements IFavoriteService {
     private void rebuildCache(String key, Set<String> favoriteIds) {
         try {
             // 先清空再写入，保证取消收藏时旧元素不会残留
-            stringRedisTemplate.delete(key);
+            redisService.delete(key);
             if (favoriteIds.isEmpty()) {
                 return;
             }
-            stringRedisTemplate.opsForSet().add(key, favoriteIds.toArray(String[]::new));
-            stringRedisTemplate.expire(key, Duration.ofSeconds(RedisKeyConstant.USER_FAVORITE_TTL));
+            redisService.addToSet(key, favoriteIds);
+            redisService.expire(key, Duration.ofSeconds(RedisKeyConstant.USER_FAVORITE_TTL));
         } catch (Exception e) {
             log.warn("收藏集合缓存写入失败, 跳过缓存: key={}", key, e);
         }
@@ -163,7 +163,7 @@ public class FavoriteServiceImpl implements IFavoriteService {
     // 写操作仅失效缓存：不为没人读的数据付出全量重建成本
     private void evictCache(Long userId) {
         try {
-            stringRedisTemplate.delete(RedisKeyConstant.userFavorites(userId));
+            redisService.delete(RedisKeyConstant.userFavorites(userId));
         } catch (Exception e) {
             log.warn("收藏集合缓存清理失败: userId={}", userId, e);
         }

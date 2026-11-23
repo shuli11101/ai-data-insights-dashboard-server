@@ -4,8 +4,9 @@
     <springProperty scope="context" name="APP_NAME" source="spring.application.name"
                     defaultValue="ai-data-insights-server"/>
     <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
+    <!-- traceId 由 TraceIdFilter 写入 MDC，未命中时输出 - 占位 -->
     <property name="LOG_PATTERN"
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:--}] %-5level %logger{40} - %msg%n"/>
 
     <!-- 控制台编码：默认 UTF-8；Windows 终端仍为 GBK 时可设 CONSOLE_LOG_CHARSET=GBK 临时规避（日志文件始终保持 UTF-8） -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

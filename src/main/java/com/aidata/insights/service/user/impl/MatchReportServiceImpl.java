@@ -9,6 +9,7 @@ import com.aidata.insights.mapper.home.JobPositionMapper;
 import com.aidata.insights.mapper.user.MatchReportMapper;
 import com.aidata.insights.security.SecurityUtils;
 import com.aidata.insights.service.user.IMatchReportService;
+import com.aidata.insights.vo.user.MatchReportDeleteVO;
 import com.aidata.insights.vo.user.MatchReportListVO;
 import com.aidata.insights.vo.user.MatchReportVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -19,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -38,6 +40,9 @@ public class MatchReportServiceImpl implements IMatchReportService {
 
     /** 正文中的「偏差百分比：-20」；「未提及」时不匹配，返回 null */
     private static final Pattern SALARY_DEVIATION_PATTERN = Pattern.compile("偏差百分比[：:]\\s*(-?\\d+)");
+
+    /** 正文中的「## 综合匹配分\n72」 */
+    private static final Pattern MATCH_SCORE_PATTERN = Pattern.compile("##+\\s*综合匹配分\\s*[:：]?\\s*\\n*\\s*(\\d{1,3})");
 
     private final MatchReportMapper matchReportMapper;
 
@@ -88,10 +93,13 @@ public class MatchReportServiceImpl implements IMatchReportService {
             throw new BizException(ResultCode.NOT_FOUND, "岗位不存在");
         }
 
+        // 前端只提交正文，分数由服务端从「## 综合匹配分」解析，客户端传的 score 一律忽略
+        int score = parseMatchScore(request.getContent());
+
         // 同一用户同一岗位只保留一份报告（uk_user_job），重复保存时覆盖旧内容
         MatchReport report = findByUserAndJob(userId, request.getJobId());
         if (report == null) {
-            report = new MatchReport(userId, request.getJobId(), request.getScore(), request.getContent());
+            report = new MatchReport(userId, request.getJobId(), score, request.getContent());
             try {
                 matchReportMapper.insert(report);
             } catch (DuplicateKeyException e) {
@@ -100,10 +108,10 @@ public class MatchReportServiceImpl implements IMatchReportService {
                 if (report == null) {
                     throw new BizException(ResultCode.INTERNAL_ERROR, "报告保存失败，请重试");
                 }
-                updateContent(report, request);
+                updateContent(report, score, request.getContent());
             }
         } else {
-            updateContent(report, request);
+            updateContent(report, score, request.getContent());
         }
 
         return toVO(report, job);
@@ -122,16 +130,23 @@ public class MatchReportServiceImpl implements IMatchReportService {
     }
 
     /**
-     * 删除当前用户已保存的分析报告
+     * 批量删除当前用户已保存的分析报告：只删属于自己的记录，不属于自己的计入 missing
      */
     @Override
-    public boolean deleteReport(Long jobId) {
-        MatchReport report = findByUserAndJob(SecurityUtils.requireUserId(), jobId);
-        if (report != null) {
-            matchReportMapper.deleteById(report.getId());
-            return true;
+    public MatchReportDeleteVO deleteReports(List<Long> jobIds) {
+        Long userId = SecurityUtils.requireUserId();
+        List<Long> ids = jobIds.stream().filter(Objects::nonNull).distinct().toList();
+
+        List<MatchReport> found = matchReportMapper.selectList(Wrappers.<MatchReport>lambdaQuery()
+                .eq(MatchReport::getUserId, userId)
+                .in(MatchReport::getJobId, ids));
+        if (!found.isEmpty()) {
+            matchReportMapper.deleteBatchIds(found.stream().map(MatchReport::getId).toList());
         }
-        return false;
+
+        List<Long> foundJobIds = found.stream().map(MatchReport::getJobId).toList();
+        List<Long> missing = ids.stream().filter(id -> !foundJobIds.contains(id)).toList();
+        return new MatchReportDeleteVO(found.size(), missing);
     }
 
     /**
@@ -145,9 +160,9 @@ public class MatchReportServiceImpl implements IMatchReportService {
     }
 
     // 覆盖已有报告的正文与分数，updateTime 由 MybatisMetaObjectHandler 自动刷新
-    private void updateContent(MatchReport report, SaveMatchReportRequest request) {
-        report.setScore(request.getScore());
-        report.setContent(request.getContent());
+    private void updateContent(MatchReport report, int score, String content) {
+        report.setScore(score);
+        report.setContent(content);
         matchReportMapper.updateById(report);
     }
 
@@ -159,7 +174,7 @@ public class MatchReportServiceImpl implements IMatchReportService {
         vo.setReportId(report.getId());
         vo.setJobId(report.getJobId());
         vo.setScore(report.getScore());
-        vo.setSaveTime(report.getCreateTime());
+        vo.setSaveTime(report.getUpdateTime());
         vo.setContent(report.getContent());
         vo.setSkillCoverage(extractInt(SKILL_COVERAGE_PATTERN, report.getContent()));
         vo.setSalaryDeviation(extractInt(SALARY_DEVIATION_PATTERN, report.getContent()));
@@ -172,6 +187,21 @@ public class MatchReportServiceImpl implements IMatchReportService {
             vo.setLocation(buildLocation(job));
         }
         return vo;
+    }
+
+    /**
+     * 从报告正文解析「## 综合匹配分」，解析不到按 0 处理
+     */
+    public static int parseMatchScore(String content) {
+        if (!StringUtils.hasText(content)) {
+            return 0;
+        }
+        Matcher matcher = MATCH_SCORE_PATTERN.matcher(content);
+        if (!matcher.find()) {
+            return 0;
+        }
+        int score = Integer.parseInt(matcher.group(1));
+        return Math.min(100, Math.max(0, score));
     }
 
     /**

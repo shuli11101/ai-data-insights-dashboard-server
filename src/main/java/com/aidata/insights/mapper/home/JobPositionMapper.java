@@ -24,6 +24,9 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
      * 按平均薪资（salary_min / salary_max 的中值）分箱统计岗位数量
      *
      * <p>区间语义为 [下界, 上界)，40K+ 为 >= 40。</p>
+     *
+     * <p>v2 有约 289 条岗位未标薪资（salary_min/max 为 NULL），
+     * 若不排除会被 ELSE 归入 40K+，因此先过滤再分箱。</p>
      */
     @Select("""
             SELECT CASE
@@ -37,7 +40,9 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
                        ELSE '40K+'
                    END AS salary_range,
                    COUNT(*) AS job_count
-            FROM job_positions
+            FROM job_positions_v2
+            WHERE salary_min IS NOT NULL
+              AND salary_max IS NOT NULL
             GROUP BY salary_range
             ORDER BY MIN((salary_min + salary_max) / 2)
             """)
@@ -51,7 +56,7 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
     @Select("""
             SELECT LOWER(TRIM(t.tag)) AS skill_tag,
                    COUNT(*) AS hot_count
-            FROM job_positions j
+            FROM job_positions_v2 j
             JOIN JSON_TABLE(j.skill_tags, '$[*]' COLUMNS (tag VARCHAR(100) PATH '$')) t
             WHERE t.tag IS NOT NULL
               AND TRIM(t.tag) <> ''
@@ -69,7 +74,7 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
      */
     @Select("""
             SELECT TRIM(t.tag) AS keyword
-            FROM job_positions j
+            FROM job_positions_v2 j
             JOIN JSON_TABLE(j.skill_tags, '$[*]' COLUMNS (tag VARCHAR(100) PATH '$')) t
             WHERE t.tag IS NOT NULL
               AND TRIM(t.tag) <> ''
@@ -91,7 +96,7 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
                 SELECT city AS area_name,
                        COUNT(*) AS job_count,
                        ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC, city) AS rn
-                FROM job_positions
+                FROM job_positions_v2
                 WHERE city IS NOT NULL
                   AND TRIM(city) <> ''
                   AND city <> '异地招聘'
@@ -115,24 +120,23 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
     /**
      * 按工作经验分档统计平均薪资
      *
-     * <p>分档口径：无需经验（含在校生/应届生）、1-3年（1年/2年）、3-5年（3-4年）、
-     * ≥5年（其余取值，含 5-7年/8-9年/10年以上）。</p>
+     * <p>分档口径：无需经验（含经验不限/在校应届）、1-3年（1年以内）、3-5年、≥5年（含 5-10年/10年以上）。</p>
      *
-     * <p>分档映射只在 CASE 中定义一次，WHERE 仅排除 NULL 与空串：
-     * 后续出现新的经验文本会被 ELSE 兜入 ≥5年，不会静默漏统。</p>
+     * <p>v2 的经验文本（经验不限 / 在校/应届 / 1年以内 / 1-3年 / 3-5年 / 5-10年 / 10年以上）
+     * 与 v1 的「N年经验」写法不同，CASE 里两种口径都容纳，避免换表后分档漏统。</p>
      */
     @Select("""
             SELECT experience,
                    ROUND(AVG(avg_salary)) AS avg_salary
             FROM (
                 SELECT CASE
-                           WHEN experience IN ('无需经验', '在校生/应届生') THEN '无需经验'
-                           WHEN experience IN ('1年经验', '2年经验') THEN '1-3年'
-                           WHEN experience = '3-4年经验' THEN '3-5年'
+                           WHEN experience IN ('无需经验', '在校生/应届生', '经验不限', '在校/应届') THEN '无需经验'
+                           WHEN experience IN ('1年经验', '2年经验', '1年以内', '1-3年') THEN '1-3年'
+                           WHEN experience IN ('3-4年经验', '3-5年') THEN '3-5年'
                            ELSE '≥5年'
                        END AS experience,
                        (salary_min + salary_max) / 2 AS avg_salary
-                FROM job_positions
+                FROM job_positions_v2
                 WHERE experience IS NOT NULL
                   AND TRIM(experience) <> ''
             ) t

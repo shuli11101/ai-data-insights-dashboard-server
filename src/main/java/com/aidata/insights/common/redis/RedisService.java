@@ -1,6 +1,7 @@
 package com.aidata.insights.common.redis;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +76,23 @@ public class RedisService {
         return StringUtils.hasText(raw) ? Optional.of(raw) : Optional.empty();
     }
 
+    /**
+     * 读取并反序列化为指定泛型类型（如 {@code List<VO>}）
+     */
+    public <T> Optional<T> get(String key, JavaType type) {
+        String raw = stringRedisTemplate.opsForValue().get(key);
+        if (!StringUtils.hasText(raw)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(objectMapper.readValue(raw, type));
+        } catch (JsonProcessingException e) {
+            // 缓存脏数据不应让主流程失败，记录后按未命中处理
+            log.warn("Redis 反序列化失败, 按未命中处理: key={}, type={}", key, type);
+            return Optional.empty();
+        }
+    }
+
     public boolean delete(String key) {
         return Boolean.TRUE.equals(stringRedisTemplate.delete(key));
     }
@@ -86,6 +104,24 @@ public class RedisService {
 
     public boolean hasKey(String key) {
         return Boolean.TRUE.equals(stringRedisTemplate.hasKey(key));
+    }
+
+    /**
+     * 判断元素是否存在于集合中
+     */
+    public boolean setContains(String key, String value) {
+        return Boolean.TRUE.equals(stringRedisTemplate.opsForSet().isMember(key, value));
+    }
+
+    /**
+     * 向集合批量添加元素，返回实际新增的数量
+     */
+    public long addToSet(String key, Collection<String> values) {
+        if (values == null || values.isEmpty()) {
+            return 0L;
+        }
+        Long added = stringRedisTemplate.opsForSet().add(key, values.toArray(String[]::new));
+        return added == null ? 0L : added;
     }
 
     public boolean expire(String key, Duration ttl) {

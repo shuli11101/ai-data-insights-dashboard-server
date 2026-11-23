@@ -40,6 +40,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RedisService redisService;
 
+    /**
+     * SSE / 异步请求处理完成后会触发异步二次派发。OncePerRequestFilter 默认跳过异步派发，
+     * 那时 SecurityContext 已清空，AuthorizationFilter 会把已完成的流式请求判为未登录，
+     * 导致响应被提前截断（curl 报 transfer closed）。这里强制在异步派发时重新解析 JWT。
+     */
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,

@@ -3,6 +3,7 @@ package com.aidata.insights.service.home.impl;
 import com.aidata.insights.common.api.ResultCode;
 import com.aidata.insights.common.constant.RedisKeyConstant;
 import com.aidata.insights.common.exception.BizException;
+import com.aidata.insights.common.redis.RedisService;
 import com.aidata.insights.dto.home.JobQuery;
 import com.aidata.insights.entity.JobPosition;
 import com.aidata.insights.mapper.home.CityMapper;
@@ -20,7 +21,6 @@ import com.aidata.insights.vo.home.SkillTagVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -29,9 +29,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -40,7 +40,7 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class JobPositionServiceImpl implements IJobPositionService {
 
-    private final StringRedisTemplate stringRedisTemplate;
+    private final RedisService redisService;
 
     private final ObjectMapper objectMapper;
 
@@ -128,27 +128,17 @@ public class JobPositionServiceImpl implements IJobPositionService {
         return cityMapper.selectCityOptions();
     }
 
-    // 读取缓存，JSON 无法解析时按未命中处理
+    // 读取缓存，JSON 无法解析时按未命中处理（反序列化失败由 RedisService 统一记日志并返回空）
     private JobDetailVO readCache(String key) {
-        String raw = stringRedisTemplate.opsForValue().get(key);
-        if (!StringUtils.hasText(raw)) {
-            return null;
-        }
-        try {
-            return objectMapper.readValue(raw, JobDetailVO.class);
-        } catch (JsonProcessingException e) {
-            log.warn("岗位详情缓存反序列化失败, 按未命中处理: key={}", key);
-            return null;
-        }
+        return redisService.get(key, JobDetailVO.class).orElse(null);
     }
 
     // 写入缓存，一次性带过期时间
     private void writeCache(String key, JobDetailVO detail) {
         try {
-            stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(detail),
-                    Duration.ofSeconds(RedisKeyConstant.JOB_DETAIL_PREFIX_TTL));
-        } catch (JsonProcessingException e) {
-            log.warn("岗位详情序列化失败, 跳过缓存: key={}", key, e);
+            redisService.set(key, detail, Duration.ofSeconds(RedisKeyConstant.JOB_DETAIL_PREFIX_TTL));
+        } catch (Exception e) {
+            log.warn("岗位详情缓存写入失败, 跳过缓存: key={}", key, e);
         }
     }
 
@@ -157,9 +147,9 @@ public class JobPositionServiceImpl implements IJobPositionService {
         JavaType type = objectMapper.getTypeFactory().constructCollectionType(List.class, elementType);
 
         try {
-            String raw = stringRedisTemplate.opsForValue().get(key);
-            if (StringUtils.hasText(raw)) {
-                return objectMapper.readValue(raw, type);
+            Optional<List<T>> cached = redisService.get(key, type);
+            if (cached.isPresent()) {
+                return cached.get();
             }
         } catch (Exception e) {
             log.warn("首页统计缓存读取失败, 回源查库: key={}", key, e);
@@ -167,8 +157,7 @@ public class JobPositionServiceImpl implements IJobPositionService {
 
         List<T> result = loader.get();
         try {
-            stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(result),
-                    Duration.ofSeconds(RedisKeyConstant.HOME_STAT_TTL));
+            redisService.set(key, result, Duration.ofSeconds(RedisKeyConstant.HOME_STAT_TTL));
         } catch (Exception e) {
             log.warn("首页统计缓存写入失败, 跳过缓存: key={}", key, e);
         }
