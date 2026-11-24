@@ -175,6 +175,7 @@ public class AiMatchServiceImpl implements IAiMatchService {
         return "面议";
     }
 
+
     /**
      * 求职者信息转成提示词里的补充信息
      */
