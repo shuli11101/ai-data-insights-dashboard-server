@@ -86,13 +86,12 @@ public class AiChatServiceImpl implements IAiChatService {
     /** 线程池饱和时的提示文案：流已开始，只能以 error 帧下发 */
     private static final String BUSY_MESSAGE = "当前使用人数较多，请稍后再试";
 
-    /** 自动场景名，match 只能由 /ai/match 使用，不能走本接口 */
-    private static final Set<String> SCENES = Set.of("drawer", "interpret", "skill", "jd", SCENE_CHAT);
+    /** 自动场景名：match 只能由 /ai/match 使用；drawer / interpret 已下线，interpret 更名为 jdDesc */
+    private static final Set<String> SCENES = Set.of("jdDesc", "skill", "jd", SCENE_CHAT);
 
-    /** 前端历史版本可能传数字编码：0=drawer 1=interpret 2=skill 3=jd 4=chat */
+    /** 前端历史版本可能传数字编码：1=jdDesc 2=skill 3=jd 4=chat（0 原为 drawer，已下线） */
     private static final Map<String, String> SCENE_CODES = Map.of(
-            "0", "drawer",
-            "1", "interpret",
+            "1", "jdDesc",
             "2", SCENE_SKILL,
             "3", SCENE_JD,
             "4", SCENE_CHAT);

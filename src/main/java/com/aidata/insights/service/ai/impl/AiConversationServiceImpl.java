@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiConversationServiceImpl implements IAiConversationService {
 
-    /** chat 是多轮对话，其余场景（drawer / interpret / skill / jd）都是一次性单轮分析 */
+    /** chat 是多轮对话，其余场景（jdDesc / skill / jd）都是一次性单轮分析 */
     private static final String SCENE_CHAT = "chat";
 
     /** 单轮分析 */

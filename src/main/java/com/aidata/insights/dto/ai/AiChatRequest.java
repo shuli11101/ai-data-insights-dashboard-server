@@ -25,7 +25,7 @@ public class AiChatRequest {
     @Size(max = 64, message = "会话 ID 过长")
     private String conversationId;
 
-    @Schema(description = "业务场景：drawer / interpret / skill / jd / chat", example = "jd")
+    @Schema(description = "业务场景：jdDesc / skill / jd / chat", example = "jd")
     @Size(max = 32, message = "场景标识过长")
     private String scene;
 

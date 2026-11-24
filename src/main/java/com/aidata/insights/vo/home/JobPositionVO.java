@@ -31,8 +31,14 @@ public class JobPositionVO {
     @Schema(description = "最高薪资（K）", example = "15")
     private Integer salaryMax;
 
-    @Schema(description = "经验要求", example = "1-3年经验")
+    @Schema(description = "薪资展示文本，优先用于列表展示", example = "5-10K")
+    private String salaryDesc;
+
+    @Schema(description = "经验要求", example = "1-3年")
     private String experience;
+
+    @Schema(description = "学历要求", example = "本科")
+    private String degree;
 
     @Schema(description = "技能标签")
     private List<String> skillTags;

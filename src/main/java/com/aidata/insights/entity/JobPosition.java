@@ -51,6 +51,18 @@ public class JobPosition implements Serializable {
     private List<String> skillTags;
 
     /**
+     * 薪资展示文本（v2 专有）：如 5-10K / 面议 / 4900-5000元/时
+     *
+     * <p>为空的 salary_min/max 岗位在这一列给出「面议」或时薪描述，展示时优先用它。</p>
+     */
+    private String salaryDesc;
+
+    /**
+     * 学历要求：本科 / 大专 / 学历不限 等（v2 起单独成列，不再混在 skill_tags）
+     */
+    private String degree;
+
+    /**
      * 发布日期
      */
     private LocalDate publishDate;

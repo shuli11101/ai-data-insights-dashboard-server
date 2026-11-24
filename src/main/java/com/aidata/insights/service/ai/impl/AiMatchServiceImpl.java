@@ -150,17 +150,29 @@ public class AiMatchServiceImpl implements IAiMatchService {
                 .filter(StringUtils::hasText)
                 .toList();
         String district = StringUtils.hasText(job.getDistrict()) ? "（" + job.getDistrict() + "）" : "";
-        int salaryMin = job.getSalaryMin() == null ? 0 : job.getSalaryMin();
-        int salaryMax = job.getSalaryMax() == null ? 0 : job.getSalaryMax();
 
         return String.join("\n",
                 "岗位信息：",
                 "- 职位名称：" + text(job.getJobName()),
                 "- 公司：" + text(job.getCompany()),
                 "- 城市：" + text(job.getCity()) + district,
-                "- 薪资：" + salaryMin + "k-" + salaryMax + "k",
-                "- 经验要求：" + (StringUtils.hasText(job.getExperience()) ? job.getExperience() : "未提及"),
+                "- 薪资：" + salaryText(job),
+                "- 经验要求：" + text(job.getExperience()),
+                "- 学历要求：" + text(job.getDegree()),
                 "- 技能标签：" + (skills.isEmpty() ? "未提及" : String.join("、", skills)));
+    }
+
+    /**
+     * 薪资展示：优先用 v2 的 salary_desc（含「面议」/时薪），否则拼 min-max，都缺失时写「面议」
+     */
+    private String salaryText(JobPosition job) {
+        if (StringUtils.hasText(job.getSalaryDesc())) {
+            return job.getSalaryDesc();
+        }
+        if (job.getSalaryMin() != null && job.getSalaryMax() != null) {
+            return job.getSalaryMin() + "k-" + job.getSalaryMax() + "k";
+        }
+        return "面议";
     }
 
     /**

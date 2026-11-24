@@ -51,7 +51,12 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
     /**
      * 技术栈热度 Top 10：展开 skill_tags JSON 数组，按标签（小写、去空格）统计提及岗位数
      *
-     * <p>历史数据中存在 null 元素，必须显式过滤，否则会被聚合成一条空标签记录。</p>
+     * <p>skill_tags 由 JD 抽取，用三层规则剔除噪声：</p>
+     * <ol>
+     *   <li>学历 / 经验类：含「经验」或以「专业 / 专业背景 / 学历 / 毕业」结尾</li>
+     *   <li>长句：超过 12 字，或含分隔符（/ 、 |）且达 8 字（如「业务模式/运营策略优化」）</li>
+     *   <li>与岗位名重合的中文标签：如「数据分析」之于「数据分析师」；纯英文技能词（Java / SQL）不受影响</li>
+     * </ol>
      */
     @Select("""
             SELECT LOWER(TRIM(t.tag)) AS skill_tag,
@@ -60,6 +65,12 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
             JOIN JSON_TABLE(j.skill_tags, '$[*]' COLUMNS (tag VARCHAR(100) PATH '$')) t
             WHERE t.tag IS NOT NULL
               AND TRIM(t.tag) <> ''
+              AND TRIM(t.tag) NOT REGEXP '经验|专业(背景)?$|学历$|毕业'
+              AND CHAR_LENGTH(TRIM(t.tag)) <= 12
+              AND NOT (CHAR_LENGTH(TRIM(t.tag)) >= 8 AND TRIM(t.tag) REGEXP '[/、|]')
+              AND NOT (CHAR_LENGTH(TRIM(t.tag)) >= 3
+                       AND TRIM(t.tag) NOT REGEXP '^[A-Za-z0-9 +#&./-]+$'
+                       AND LOCATE(LOWER(TRIM(t.tag)), LOWER(COALESCE(j.job_name, ''))) > 0)
             GROUP BY skill_tag
             ORDER BY hot_count DESC, skill_tag
             LIMIT 10
@@ -67,10 +78,9 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
     List<SkillTagVO> selectHotSkillTags();
 
     /**
-     * 技术栈下拉选项：展开 skill_tags，过滤 JD 长句噪声后按热度排序
+     * 技术栈下拉选项：展开 skill_tags，用与 Top10 相同的三层规则过滤后按热度排序
      *
-     * <p>数据里混有从岗位描述抽取的长句（如「# 定期或不定期举办…」），
-     * 用长度 ≤ 20 且不以数字 / # / 括号开头做粗过滤，再取出现次数最高的前 100 个。</p>
+     * <p>额外排除以数字 / # / 括号开头的片段（如「# 定期或不定期举办…」）。</p>
      */
     @Select("""
             SELECT TRIM(t.tag) AS keyword
@@ -78,8 +88,13 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
             JOIN JSON_TABLE(j.skill_tags, '$[*]' COLUMNS (tag VARCHAR(100) PATH '$')) t
             WHERE t.tag IS NOT NULL
               AND TRIM(t.tag) <> ''
-              AND CHAR_LENGTH(TRIM(t.tag)) <= 20
               AND TRIM(t.tag) NOT REGEXP '^[0-9#（(]'
+              AND TRIM(t.tag) NOT REGEXP '经验|专业(背景)?$|学历$|毕业'
+              AND CHAR_LENGTH(TRIM(t.tag)) <= 12
+              AND NOT (CHAR_LENGTH(TRIM(t.tag)) >= 8 AND TRIM(t.tag) REGEXP '[/、|]')
+              AND NOT (CHAR_LENGTH(TRIM(t.tag)) >= 3
+                       AND TRIM(t.tag) NOT REGEXP '^[A-Za-z0-9 +#&./-]+$'
+                       AND LOCATE(LOWER(TRIM(t.tag)), LOWER(COALESCE(j.job_name, ''))) > 0)
             GROUP BY keyword
             ORDER BY COUNT(*) DESC, keyword
             LIMIT 100
