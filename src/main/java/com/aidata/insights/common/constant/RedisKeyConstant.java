@@ -84,6 +84,16 @@ public final class RedisKeyConstant {
     public static final int AI_CONVERSATION_SEQ_TTL = 60 * 60 * 24 * 30;
 
     /**
+     * AI 行情注入快照，标识为「城市:方向」，空维度用 * 占位
+     */
+    public static final String AI_MARKET_PREFIX = "ai:market:";
+
+    /**
+     * 行情快照有效期（秒），1 小时
+     */
+    public static final int AI_MARKET_TTL = 60 * 60;
+
+    /**
      * 用户收藏集合有效期（秒），24 小时
      */
     public static final int USER_FAVORITE_TTL = 60 * 60 * 24;
@@ -129,5 +139,12 @@ public final class RedisKeyConstant {
 
     public static String aiConversationSeq(Long conversationPk) {
         return AI_CONVERSATION_SEQ_PREFIX + conversationPk;
+    }
+
+    /**
+     * 行情快照 key：城市或方向为空时用 * 占位，避免不同维度拼出同一个 key
+     */
+    public static String aiMarket(String city, String category) {
+        return AI_MARKET_PREFIX + (city == null ? "*" : city) + ":" + (category == null ? "*" : category);
     }
 }

@@ -117,6 +117,9 @@ public class AiChatServiceImpl implements IAiChatService {
     /** AI 流式任务共享线程池：有界队列，饱和时快速失败，由 Spring 统一管理生命周期 */
     private final ThreadPoolTaskExecutor aiStreamExecutor;
 
+    /** 行情数据注入：把数据库聚合结果拼成补充信息，交给模型转述 */
+    private final AiMarketContextService aiMarketContextService;
+
     /**
      * 流式对话入口
      * 1. 获取用户id, 场景，和历史消息
@@ -162,8 +165,20 @@ public class AiChatServiceImpl implements IAiChatService {
             appendHistory(conversation.getId(), messages);
         }
 
+        // 行情数据注入：仅 skill 场景，前端已显式传 context 时不覆盖
+        String context = request.getContext();
+        if (SCENE_SKILL.equals(scene) && !StringUtils.hasText(context)) {
+            try {
+                context = aiMarketContextService.build(messages.get(messages.size() - 1).getContent());
+            } catch (RuntimeException e) {
+                // 行情统计失败不能影响主流程，降级为不注入
+                log.warn("行情数据注入失败, 本轮跳过: traceId={}", traceId, e);
+                context = null;
+            }
+        }
+
         // 组装消息，将历史消息和额外消息（例如岗位详情，求职者信息等）组装成 AI 调用需要的格式
-        List<Map<String, String>> payload = buildPayload(messages, request.getContext());
+        List<Map<String, String>> payload = buildPayload(messages, context);
 
         // 创建 SseEmitter 并设置超时时间
         SseEmitter emitter = aiStreamClient.newEmitter();
